@@ -35,5 +35,15 @@ pipeline {
                 '''
             }
         }
+        stage('Trigger Deploy') {
++           steps {
+                    "IMAGE_FULL_NAME=$DOCKER_USERNAME/$IMAGE_BASE_NAME:$IMAGE_TAG"
+                    build job: deploy, wait: false, parameters: [
+                        string(name: 'SERVICE_NAME', value: "Netflix-frontend"),
+                        string(name: 'IMAGE_FULL_NAME_PARAM', value: "$IMAGE_FULL_NAME")]
+               
++     }
++    }
+
     }
 }
