@@ -33,7 +33,7 @@ export default function Home(): React.ReactElement {
           <h1>
             Nextflix
           </h1>
-          <p>A Netflix Bar</p>
+          <p>A Netflix Bar 123 </p>
           <div className={styles.button} onClick={onSignIn}>Sign in</div>
         </div>
       </main>
