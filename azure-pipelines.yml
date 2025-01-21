@@ -1,0 +1,73 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  group: docker-VAR
+  VERSION: $(Build.BuildId)
+  ARTIFACT_PATH: '$(Build.ArtifactStagingDirectory)'
+   
+stages:
+- stage: Build
+  displayName: 'Build Docker Image'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Job'
+    steps:
+    - checkout: self
+    
+    - script: |
+        echo $(VERSION) > $(ARTIFACT_PATH)/VersionStamp.txt
+        echo "Build Date: $(date)" >> $(ARTIFACT_PATH)/VersionStamp.txt
+      displayName: 'Update VersionStamp.txt'
+
+    - script: |
+        cat $(ARTIFACT_PATH)/VersionStamp.txt
+      displayName: 'Print version contents'
+
+    - script: |
+        echo "$(DOCKER_HUB_PASSWORD)" | docker login --username $(DOCKER_HUB_USERNAME) --password-stdin
+      displayName: 'docker login'
+
+    - script: |
+        docker build . -t $(DOCKER_HUB_USERNAME)/$(IMAGE_NAME):$(Build.BuildId)
+      displayName: 'docker build'
+
+    - task: PowerShell@2
+      inputs:
+        targetType: 'inline'
+        script: |
+          $destination = "C:\IT"
+          New-Item -ItemType Directory -Force -Path $destination
+          Copy-Item "$(ARTIFACT_PATH)\*" -Destination $destination -Recurse -Force
+      displayName: 'copy artifacts to C:\IT'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(ARTIFACT_PATH)'
+        ArtifactName: 'docker-artifacts'
+        publishLocation: 'Container'
+      displayName: 'publish build artifacts'
+
+- stage: Push
+  displayName: 'Push Docker Image'
+  dependsOn: Build
+  jobs:
+  - job: PushJob
+    displayName: 'push image'
+    steps:
+    - script: |
+        docker push $(DOCKER_HUB_USERNAME)/$(IMAGE_NAME):$(Build.BuildId)
+      displayName: 'Push Image with Build ID'
+
+
+    - task: SendEmail@1
+      inputs:
+        To: '$(EMAIL_RECIPIENT)'
+        From: '$(EMAIL_SENDER)'
+        Subject: 'Docker Build Pipeline - $(Build.Result)'
+        Body: 'Pipeline Status: $(Build.Result)'
+        BodyAsHtml: false
+        AddAttachment: false
